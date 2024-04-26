@@ -1,33 +1,102 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import styled from 'styled-components';
+import axios from 'axios';
 
-const NavWrapper = styled.nav`
-  position: absolute;
-  right: 0;
-`;
+const el = document.getElementById("root");
+const root = ReactDOM.createRoot(el);
 
-const NavLink = styled.a`
-  color: black;
-  text-align: center;
-  padding: 8px 5px;
-  text-decoration: none;
-`;
+const unsplash = axios.create({
+    baseURL: 'https://api.unsplash.com',
+    headers: {
+        Authorization:
+        'Client-ID 2b98c1afb0aed3b3d94a1866bdc3ac013d21a0c86d236a0fee32355c331c0296',
+    },
+});
 
-const judul = <h2>BOOTCAMP Batch 8 : Experiment with REACTJS</h2>
-ReactDOM.render(judul, document.getElementById("title"));
+class SearchBar extends React.Component {
+    state = { term: "" };
 
-const element = <h1>This is React</h1>
-ReactDOM.render(element, document.getElementById("root"));
+    onFormSubmit = (event) => {
+        event.preventDefault();
 
-const navigasi = (
-  <NavWrapper>
-    <NavLink href="#Contact">Home</NavLink>
-    <NavLink href="#About">About</NavLink>
-    <NavLink href="#Home">Contact</NavLink>
-  </NavWrapper>
-);
-ReactDOM.render(navigasi, document.getElementById("nav"));
+        this.props.onSubmit(this.state.term);
+    };
 
+    render() {
+        return (
+            <div className="ui segment">
+                <form onSubmit={this.onFormSubmit} className="ui form">
+                    <div className="field">
+                        <label>Image search</label>
+                        <input
+                        type="text"
+                        value={this.state.term}
+                        onChange={(e) => this.setState({ term: e.target.value})}
+                        />
+                    </div>
+                </form>
+            </div>
+        );
+    }
+}
 
+class App extends React.Component {
+    constructor(props) {
+        super(props);
+        this.imageRefs = []; // initialize imageRefs as an empty array
+    }
 
+    state = { images: [] };
+
+    onSearchSubmit = async (term) => {
+        const response = await unsplash.get("/search/photos", {
+            params: { query: term },
+        });
+
+        this.setState({ images: response.data.results });
+    };
+
+    renderImages() {
+        return this.state.images.map((image, index) => {
+            this.imageRefs[index] = React.createRef(); // create a ref for each image
+            return (
+                <div key={image.id} className="column">
+                    <img ref={this.imageRefs[index]} src={image.urls.small} alt={image.description} style={{ width: "100%", height: "auto" }} />
+                </div>
+            );
+        });
+    }
+
+    componentDidMount() {
+        this.adjustImageSizes();
+        window.addEventListener('resize', this.adjustImageSizes);
+    }
+
+    componentWillUnmount() {
+        window.removeEventListener('resize', this.adjustImageSizes);
+    }
+
+    adjustImageSizes = () => {
+        this.imageRefs.forEach((ref) => {
+            if (ref.current) {
+                const width = ref.current.offsetWidth;
+                ref.current.style.height = `${width / 1.5}px`; // adjust height based on width (aspect ratio 3:2)
+            }
+        });
+    };
+
+    render() {
+        return (
+            <div className="ui container" style={{ marginTop: "10px" }}>
+                <SearchBar onSubmit={this.onSearchSubmit} />
+                <div className="ui segment">
+                    <div className="ui stackable three column grid">
+                        {this.renderImages()}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+}
+
+root.render(<App />)
